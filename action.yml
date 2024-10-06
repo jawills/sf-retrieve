@@ -1,4 +1,4 @@
-name: sf-retrieve
+name: Backup Salesforce Metadata
 description: "Retrieves Salesforce metadata and commits it to a branch"
 author: jawills
 branding:
