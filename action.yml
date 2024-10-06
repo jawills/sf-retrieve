@@ -1,0 +1,88 @@
+name: "Backup Salesforce Metadata"
+description: "Retrieves Salesforce metadata and commits it to a branch"
+author: jawills
+branding:
+  icon: code
+  color: blue
+
+inputs:
+  SFDX_AUTH_URL:
+    description: "The auth url tied to your deployment environment"
+    type: string
+    required: true
+  BRANCH_NAME:
+    description: "The name of the branch you want to backup the code to"
+    type: string
+    required: true
+  GITHUB_USER_NAME:
+    description: "Name tied to the git deployments"
+    type: string
+    default: "github-actions[bot]"
+  GITHUB_USER_EMAIL:
+    description: "Email tied to the git deployments"
+    type: string
+    default: "github-actions[bot]@users.noreply.github.com"
+  SOURCE_DIR:
+    description: "File paths for source to retrieve from the org. The supplied paths can be to a single file (in which case the operation is applied to only one file) or to a folder (in which case the operation is applied to all source files in the directory and its subdirectories)."
+    type: string
+  METADATA:
+    description: "Metadata component names to retrieve. Wildcards (`*`) supported as long as you use quotes, such as `ApexClass:MyClass*`."
+    type: string
+  MANIFEST_DIR:
+    description: "File path for the manifest (package.xml) that specifies the components to retrieve. If you specify this parameter, don't specify METADATA or SOURCE_DIR"
+    type: string
+  IGNORE_CONFLICTS:
+    description: "Ignore conflicts and retrieve and save files to your local filesystem, even if they overwrite your local changes. This flag applies only to orgs that allow source tracking. It has no effect on orgs that don't allow it, such as production orgs."
+    type: boolean
+  FORCE_PUSH:
+    description: "Force push commit to desired branch"
+    type: boolean
+runs:
+  using: "composite"
+
+  steps:
+    - name: Install Salesforce CLI
+      shell: bash
+      run: |
+        npm install -g @salesforce/cli
+        sf --version
+
+    - name: Authenticate to Salesforce
+      shell: bash
+      run: |
+        sf org login sfdx-url --set-default --sfdx-url-file <(echo "${{ inputs.SFDX_AUTH_URL }}")
+    - name: Retrieve Salesforce metadata
+      shell: bash
+      run: |
+        deployFlags=()
+        if [ -n "${{ inputs.SOURCE_DIR }}" ]; then
+          deployFlags+=( --source-dir "${{ inputs.SOURCE_DIR }}" )
+        fi
+        if [ -n "${{ inputs.METADATA }}" ]; then
+          deployFlags+=( --metadata "${{ inputs.METADATA }}" )
+        fi
+        if [ "${{ inputs.IGNORE_CONFLICTS }}" = "true" ]; then
+          deployFlags+=( --ignore-conflicts )
+        fi
+        if [ -n "${{ inputs.MANIFEST_DIR }}" ]; then
+          deployFlags+=( --manifest "${{ inputs.MANIFEST_DIR }}" )
+        fi
+        sf project retrieve start "${deployFlags[@]}"
+
+    - name: Commit metadata changes
+      shell: bash
+      run: |
+        git config --local user.name ${{ inputs.GITHUB_USER_NAME }}
+        git config --local user.email ${{ inputs.GITHUB_USER_EMAIL }}
+        git checkout -b ${{ inputs.BRANCH_NAME }} || ${{ inputs.BRANCH_NAME }}
+        git add .
+        git commit -m "Backup Salesforce metadata $(date +'%Y-%m-%d')" || echo "No changes to commit"
+
+    - name: Push changes to backup branch
+      shell: bash
+      run: |
+        deployFlags=()
+        if [ "${{ inputs.FORCE_PUSH }}" = "true" ]; then
+          deployFlags+=( --force )
+        fi
+        git push origin ${{ inputs.BRANCH_NAME }} "${deployFlags[@]}"
