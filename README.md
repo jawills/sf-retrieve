@@ -47,4 +47,4 @@ Copy down the value of `sfdxAuthUrl` for later.
 
 ## Usage
 
-You can see how these work by checking my [write-up]() or [YouTube video]().
+You can see how these work by checking my [write-up](https://www.1sync.co/build-salesforce-deployment-pipeline-with-github-actions) or [YouTube video](https://youtu.be/R31DWnkiYpY).
